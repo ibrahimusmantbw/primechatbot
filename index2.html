@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ask Me Anything</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d2c6c;
+      font-family: Arial, sans-serif;
+    }
+    .app {
+      width: 100%;
+      max-width: 420px;
+      height: 92vh;
+      max-height: 680px;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    header {
+      padding: 14px 16px;
+      background: #0d2c6c;
+      color: #fff;
+    }
+    header h1 { margin: 0; font-size: 18px; }
+    header p { margin: 2px 0 0; font-size: 12px; color: #f5b800; }
+    #chat {
+      flex: 1;
+      padding: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #f3f6fc;
+    }
+    .msg {
+      max-width: 85%;
+      padding: 10px 13px;
+      border-radius: 12px;
+      font-size: 15px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .bot { align-self: flex-start; background: #fff; color: #1b1b1b; border: 1px solid #dbe3f3; }
+    .user { align-self: flex-end; background: #0d2c6c; color: #fff; }
+    .typing { font-style: italic; color: #666; }
+    .code {
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      background: #0f1b33;
+      color: #e8eefc;
+      max-width: 95%;
+      overflow-x: auto;
+    }
+    .copy-btn {
+      display: block;
+      margin-top: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      height: auto;
+    }
+    .quick {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px 0;
+      overflow-x: auto;
+      background: #fff;
+      border-top: 1px solid #dbe3f3;
+    }
+    .quick button {
+      flex: 0 0 auto;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #0d2c6c;
+      background: #fff;
+      border: 1px solid #0d2c6c;
+      border-radius: 16px;
+      white-space: nowrap;
+    }
+    .quick button:hover { background: #f5b800; }
+    form {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+    input {
+      flex: 1;
+      padding: 12px;
+      font-size: 15px;
+      border: 2px solid #0d2c6c;
+      border-radius: 8px;
+    }
+    input:focus-visible, button:focus-visible { outline: 3px solid #f5b800; }
+    button {
+      padding: 0 18px;
+      font-size: 15px;
+      font-weight: bold;
+      color: #0d2c6c;
+      background: #f5b800;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: #e0a800; }
+  </style>
+</head>
+<body>
+
+  <div class="app">
+    <header>
+      <h1>PrimeX chatbot</h1>
+      <p>Tell me what you want</p>
+    </header>
+
+    <div id="chat"></div>
+
+    <div class="quick" id="quick"></div>
+
+    <form id="form" autocomplete="off">
+      <input type="text" id="input" placeholder="Type your message..." required>
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+    const CREATOR = "Ibrahim Usman! A software engineering student";
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const quick = document.getElementById("quick");
+    let userName = "";
+
+    /* ---------- Helpers ---------- */
+
+    function addMessage(text, who) {
+      const div = document.createElement("div");
+      div.className = "msg " + who;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+      return div;
+    }
+
+    function addCode(code) {
+      const div = document.createElement("div");
+      div.className = "msg bot code";
+      div.textContent = code;
+      const btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.type = "button";
+      btn.textContent = "Copy code";
+      btn.addEventListener("click", function () {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(code).then(function () {
+            btn.textContent = "Copied!";
+            setTimeout(function () { btn.textContent = "Copy code"; }, 1500);
+          });
+        }
+      });
+      div.appendChild(btn);
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function botReply(reply) {
+      const typing = addMessage("Typing...", "bot typing");
+      setTimeout(function () {
+        typing.remove();
+        if (typeof reply === "object" && reply.code) {
+          if (reply.text) addMessage(reply.text, "bot");
+          addCode(reply.code);
+        } else {
+          addMessage(reply, "bot");
+        }
+      }, 600);
+    }
+
+    function pick(list) {
+      return list[Math.floor(Math.random() * list.length)];
+    }
+
+    /* ---------- Math ---------- */
+
+    function solveMath(text) {
+      const cleaned = text
+        .toLowerCase()
+        .replace(/what is|what's|calculate|solve|equals|=|\?/g, "")
+        .replace(/x|×/g, "*")
+        .replace(/÷/g, "/")
+        .replace(/plus/g, "+")
+        .replace(/minus/g, "-")
+        .replace(/times/g, "*")
+        .replace(/divided by/g, "/")
+        .trim();
+      if (!/^[0-9+\-*/%.() ]+$/.test(cleaned) || !/[0-9]/.test(cleaned) || !/[+\-*/%]/.test(cleaned)) {
+        return null;
+      }
+      try {
+        const result = Function('"use strict"; return (' + cleaned + ')')();
+        if (!isFinite(result)) return "That is not a valid calculation.";
+        return cleaned + " = " + Math.round(result * 1e10) / 1e10;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    /* ---------- Stories with emojis ---------- */
+
+    const STORIES = {
+      general: [
+        "🌅 Once upon a time, in a small village near Sokoto, there lived a boy named Ibrahim. 👦\n\n📚 Every morning he walked 5 kilometres to school, even when it was hot. ☀️\n\n😮 His friends laughed and said, \"Why do you work so hard?\"\n\n💡 Musa smiled and said, \"Because my dreams are bigger than this road.\"\n\n🎓 Years later, Musa became a great engineer and built a school in his village. 🏫\n\n✨ Moral: Hard work and patience will take you far. 🌟",
+        "🐢 A slow tortoise once challenged a fast rabbit 🐇 to a race.\n\n😂 The rabbit laughed and said, \"You? You cannot beat me!\"\n\n🏁 The race started. The rabbit ran far ahead, then decided to sleep under a tree. 😴\n\n🚶 The tortoise did not stop. Step by step, he kept moving. 💪\n\n🏆 When the rabbit woke up, the tortoise was already at the finish line!\n\n✨ Moral: Slow and steady wins the race. 🌟"
+      ],
+      friendship: [
+        "🤝 Two friends, Aisha 👧 and Zainab 👧, were walking in the desert. 🏜️\n\n😠 They had an argument, and Aisha slapped Zainab.\n\n😢 Zainab wrote in the sand: \"Today my best friend slapped me.\"\n\n🌊 Later they found an oasis and swam. Zainab started to drown, and Aisha saved her! 🛟\n\n💎 Zainab then carved on a stone: \"Today my best friend saved my life.\"\n\n❓ Aisha asked why. Zainab said, \"Hurt is written in sand so the wind erases it. Kindness is carved in stone so it stays.\" ❤️\n\n✨ Moral: Forget the hurt, remember the kindness. 🌟"
+      ],
+      funny: [
+        "😂 A student walked into the exam hall very confident. 😎\n\n📝 He opened the paper and saw the first question. His smile disappeared. 😳\n\n🤔 He turned the page. Same shock. 😱\n\n🙏 Then he wrote at the top: \"Dear Lecturer, only God and I knew the answers when I was reading. Now only God knows.\" 😅\n\n🎉 The lecturer laughed so hard that he gave him 2 marks for creativity. 🤣\n\n✨ Moral: Read your books before the exam, not during it. 📖"
+      ],
+      moral: [
+        "🐜 In summer, a little ant worked hard every day, carrying food to its home. 🌾\n\n🦗 A grasshopper laughed, \"Why work? Come and sing with me!\" 🎶\n\n❄️ When winter came, the grasshopper had no food and was cold and hungry. 😭\n\n🏠 The ant opened its door and shared a little food, but taught him a lesson. 🍞\n\n✨ Moral: Prepare today for the days that are coming. 🌟"
+      ],
+      student: [
+        "🎒 Fatima was a student who always slept late and woke up tired. 😴\n\n📉 Her grades began to fall. She felt sad and lost. 😞\n\n🗓️ One day a senior friend told her: \"Make a timetable, sleep early, and study 30 minutes every day.\" ⏰\n\n💪 Fatima tried it. After one month, she understood her lessons better. 📚\n\n🏆 At the end of the semester, she got her best result ever! 🎉\n\n✨ Moral: Small daily habits create big success. 🌟"
+      ]
+    };
+
+    function getStory(text) {
+      if (/friend/.test(text)) return pick(STORIES.friendship);
+      if (/funny|laugh|comedy/.test(text)) return pick(STORIES.funny);
+      if (/moral|lesson|wisdom/.test(text)) return pick(STORIES.moral);
+      if (/student|school|study|university/.test(text)) return pick(STORIES.student);
+      return pick(STORIES.general);
+    }
+
+    /* ---------- Student daily questions ---------- */
+
+    const STUDENT_TOPICS = [
+      {
+        test: /(how|ways?|tips?).*(study|read|learn|revise)|study (tips?|plan|method)/,
+        answer: "📚 Good study tips:\n\n1️⃣ Study in short sessions (25 to 30 minutes), then rest 5 minutes ⏰\n2️⃣ Read in a quiet place 🤫\n3️⃣ Write your own short notes ✍️\n4️⃣ Test yourself with past questions 📝\n5️⃣ Revise the same day you learn 🔁\n6️⃣ Sleep well, because your brain saves memory when you sleep 😴\n\nYou can do it! 💪"
+      },
+      {
+        test: /exam|test|prepare.*(exam|test)/,
+        answer: "📝 Exam preparation:\n\n🗓️ Start early, not the night before\n📖 Use past questions, lecturers repeat topics\n🤝 Study with serious friends and ask each other questions\n🥤 Drink water and eat well before the exam\n😴 Sleep at least 6 to 7 hours\n⏱️ In the hall, read all questions first and manage your time\n\nAll the best! 🍀"
+      },
+      {
+        test: /focus|concentrat|distract|phone/,
+        answer: "🎯 How to focus:\n\n📵 Put your phone on silent or in another room\n⏲️ Use the Pomodoro method: 25 minutes work, 5 minutes break\n🎧 Use calm music or silence\n🧹 Keep your table clean\n✅ Write 3 things to finish today\n\nOne small step at a time. 🚶"
+      },
+      {
+        test: /sleep|tired|rest/,
+        answer: "😴 Sleep matters for students!\n\n🌙 Try to sleep at the same time every night\n📵 Stay off your phone 30 minutes before bed\n☕ Avoid too much tea or coffee late in the day\n💤 Aim for 6 to 8 hours\n\nA rested brain learns faster. 🧠"
+      },
+      {
+        test: /stress|anxiety|anxious|depress|worried|pressure|sad/,
+        answer: "💙 I am sorry you feel this way. Many students feel pressure.\n\n🌬️ Take a slow deep breath: in for 4, out for 6\n🚶 Walk outside for 10 minutes\n🗣️ Talk to a friend, family member, or counsellor you trust\n📝 Write down what worries you, then break it into small tasks\n🙏 Rest. You are doing better than you think.\n\nYou are not alone. If it feels too heavy, please talk to someone you trust or a school counsellor. 🤗"
+      },
+      {
+        test: /time ?table|schedule|manage.*time|time management|plan my day/,
+        answer: "🗓️ Simple daily timetable:\n\n🌅 6:00 Wake up, pray, freshen up\n🍳 7:00 Breakfast\n🏫 8:00 to 2:00 Lectures\n🍛 2:00 Lunch and rest\n📖 4:00 Study (1 to 2 hours)\n⚽ 6:00 Exercise or relax\n🌙 8:00 Revise notes\n😴 10:30 Sleep\n\nChange it to fit your own life. 😊"
+      },
+      {
+        test: /cgpa|gpa|grade point|calculate.*(result|grade)/,
+        answer: "🎓 How to calculate GPA:\n\n1️⃣ Multiply each course grade point by its credit unit\n2️⃣ Add all the results (this is total quality points)\n3️⃣ Divide by the total credit units\n\n📌 Example (5-point scale):\nA = 5, B = 4, C = 3, D = 2, E = 1, F = 0\n\nMath (3 units, A) = 15\nEnglish (2 units, B) = 8\nPhysics (3 units, C) = 9\n\nTotal = 32 points / 8 units = 4.00 GPA 🎉"
+      },
+      {
+        test: /note|take notes|notes/,
+        answer: "✍️ Better note-taking:\n\n📌 Write main points, not every word\n🎨 Use headings, colours, and short sentences\n❓ Write questions in the margin\n🔁 Read your notes again the same day\n🧠 Explain the notes to yourself or a friend"
+      },
+      {
+        test: /group study|study group|study with/,
+        answer: "🤝 Group study works when:\n\n👥 Group is small (3 to 5 people)\n🎯 Everyone prepares a topic first\n🗣️ Each person explains to the others\n⏱️ You set a time limit\n🚫 No gossip or phone scrolling\n\nTeaching others is the best way to learn! 🌟"
+      },
+      {
+        test: /motivat|inspire|give up|lazy|discourag/,
+        answer: pick([
+          "🔥 Remember why you started. Your family believes in you. 🌟\n\nEvery big engineer once did not know how to write one line of code. Keep going! 💻💪",
+          "🌱 You do not need to be perfect, you just need to continue. Small progress is still progress! 🚀",
+          "🏔️ The hardest part is starting. Do just 10 minutes now, and you will feel better. You can do it! 💪"
+        ])
+      },
+      {
+        test: /memoriz|remember|forget|memory/,
+        answer: "🧠 How to remember what you read:\n\n🔁 Repeat after 1 day, 3 days, and 7 days\n🖼️ Link topics to pictures or stories\n🎵 Use short songs or abbreviations\n🗣️ Explain it aloud without looking at your book\n😴 Sleep well"
+      },
+      {
+        test: /assignment|homework|project/,
+        answer: "📘 For assignments:\n\n1️⃣ Read the question carefully\n2️⃣ Make a short outline\n3️⃣ Write in your own words\n4️⃣ Check spelling, references, and deadline ⏰\n5️⃣ Submit early\n\nTell me the subject and question, and I will try to guide you. 🤗"
+      },
+      {
+        test: /career|job|skill|future|software engineer|learn (coding|programming)/,
+        answer: "💼 Skills for a software engineering student:\n\n💻 Practice coding every day (HTML, CSS, JavaScript, Python)\n🔨 Build small projects and put them on GitHub\n📚 Learn problem solving and data structures\n🌐 Create a portfolio website\n🤝 Join tech communities and internships\n\nStart small, stay consistent. 🚀"
+      }
+    ];
+
+    function studentAnswer(text) {
+      for (let i = 0; i < STUDENT_TOPICS.length; i++) {
+        if (STUDENT_TOPICS[i].test.test(text)) return STUDENT_TOPICS[i].answer;
+      }
+      return null;
+    }
+
+    /* ---------- Code suggestions ---------- */
+
+    const CODE_SNIPPETS = [
+      {
+        test: /button/,
+        text: "💻 Here is a simple button that shows a message:",
+        code: "<button onclick=\"alert('Hello!')\">Click me</button>"
+      },
+      {
+        test: /form|login|sign ?up|register/,
+        text: "💻 A simple login form:",
+        code: "<form>\n  <label>Email</label>\n  <input type=\"email\" required>\n  <label>Password</label>\n  <input type=\"password\" required>\n  <button type=\"submit\">Login</button>\n</form>"
+      },
+      {
+        test: /css|style|color|colour/,
+        text: "🎨 Simple CSS to style a card:",
+        code: ".card {\n  background: #fff;\n  padding: 16px;\n  border-radius: 12px;\n  box-shadow: 0 2px 8px rgba(0,0,0,0.15);\n}\n.card h2 {\n  color: #0d2c6c;\n}"
+      },
+      {
+        test: /loop|for loop|repeat/,
+        text: "🔁 A JavaScript loop that prints 1 to 5:",
+        code: "for (let i = 1; i <= 5; i++) {\n  console.log(i);\n}"
+      },
+      {
+        test: /function/,
+        text: "⚙️ A JavaScript function that adds two numbers:",
+        code: "function add(a, b) {\n  return a + b;\n}\n\nconsole.log(add(5, 3)); // 8"
+      },
+      {
+        test: /array|list/,
+        text: "📋 Working with an array in JavaScript:",
+        code: "const fruits = ['Mango', 'Orange', 'Banana'];\n\nfruits.push('Pawpaw');\n\nfruits.forEach(function (fruit) {\n  console.log(fruit);\n});"
+      },
+      {
+        test: /javascript|js|python|java/,
+        text: "💻 A small JavaScript program that greets the user:",
+        code: "const name = prompt('What is your name?');\nalert('Welcome, ' + name + '!');"
+      },
+      {
+        test: /image|picture|photo/,
+        text: "🖼️ Show an image on a web page:",
+        code: "<img src=\"photo.jpg\" alt=\"My photo\" width=\"300\">"
+      },
+      {
+        test: /nav|menu|navbar/,
+        text: "🧭 A simple navigation bar:",
+        code: "<nav>\n  <a href=\"#home\">Home</a>\n  <a href=\"#about\">About</a>\n  <a href=\"#contact\">Contact</a>\n</nav>\n\n<style>\n  nav { background: #0d2c6c; padding: 12px; }\n  nav a { color: #fff; margin-right: 16px; text-decoration: none; }\n</style>"
+      },
+      {
+        test: /html|webpage|web page|website|page/,
+        text: "🌐 A basic HTML page you can start with:",
+        code: "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>My Page</title>\n</head>\n<body>\n  <h1>Hello World</h1>\n  <p>This is my first web page.</p>\n</body>\n</html>"
+      }
+    ];
+
+    function codeReply(text) {
+      if (!/\b(code|html|css|javascript|js|python|java|script|snippet|program)\b/.test(text) &&
+          !/(suggest|give|show|write).*(button|form|loop|function|array|navbar|menu|image|page)/.test(text)) {
+        return null;
+      }
+      for (let i = 0; i < CODE_SNIPPETS.length; i++) {
+        if (CODE_SNIPPETS[i].test.test(text)) {
+          return { text: CODE_SNIPPETS[i].text, code: CODE_SNIPPETS[i].code };
+        }
+      }
+      return "💻 I can suggest code for: button, form, css, loop, function, array, image, navbar, and html page.\n\nExample: type \"suggest button code\" or \"give me a loop code\".";
+    }
+
+    /* ---------- Main reply logic ---------- */
+
+    function getReply(message) {
+      const text = message.toLowerCase().trim();
+
+      // Creator question
+      if (
+        /(who|whom).*(creat|made|make|built|build|develop|program|design|own|behind)/.test(text) ||
+        /(your|ur)\s*(creator|maker|developer|owner|author|programmer)/.test(text) ||
+        /^creator\??$/.test(text)
+      ) {
+        return "I was created by " + CREATOR + ". 👨‍💻";
+      }
+
+      // Name
+      const nameMatch = text.match(/(?:my name is|i am|i'm|call me)\s+([a-z]+)/);
+      if (nameMatch && !/^(tired|sad|worried|stressed|lazy|happy|fine|ok|okay|a|an|the|not)$/.test(nameMatch[1])) {
+        userName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
+        return "Nice to meet you, " + userName + "! 😊 What do you want me to help you with?";
+      }
+      if (/what('s| is) my name|who am i/.test(text)) {
+        return userName ? "Your name is " + userName + ". 😊" : "You have not told me your name yet. Say \"my name is ...\".";
+      }
+
+      // Stories
+      if (/\b(story|stories|tale|narrate)\b/.test(text)) {
+        return getStory(text);
+      }
+
+      // Code suggestions
+      const code = codeReply(text);
+      if (code) return code;
+
+      // Greetings
+      if (/^(hi|hello|hey|good morning|good afternoon|good evening|salam|assalamu alaikum)\b/.test(text)) {
+        return pick([
+          "Hello" + (userName ? " " + userName : "") + "! 👋 What do you want?",
+          "Hi" + (userName ? " " + userName : "") + "! 😊 How can I help you today?"
+        ]);
+      }
+
+      if (/how are you/.test(text)) {
+        return "I am doing great, thank you! 😄 What do you want me to help you with?";
+      }
+
+      if (/(your name|who are you|what are you)/.test(text)) {
+        return "I am a chat assistant 🤖. I can answer student questions, tell stories, suggest code, do math, tell the time and more. I was created by " + CREATOR + ".";
+      }
+
+      // Time and date
+      if (/\btime\b/.test(text) && !/time ?table|time management|manage.*time/.test(text)) {
+        return "🕒 The time is " + new Date().toLocaleTimeString() + ".";
+      }
+      if (/\b(date|day|today)\b/.test(text) && !/motivat/.test(text)) {
+        return "📅 Today is " + new Date().toLocaleDateString(undefined, {
+          weekday: "long", year: "numeric", month: "long", day: "numeric"
+        }) + ".";
+      }
+
+      // Jokes
+      if (/joke/.test(text)) {
+        return pick([
+          "😂 Why do programmers prefer dark mode? Because light attracts bugs.",
+          "🤣 Why did the developer go broke? Because he used up all his cache.",
+          "😆 There are 10 kinds of people: those who understand binary and those who do not.",
+          "😄 Why was the computer cold? Because it left its Windows open."
+        ]);
+      }
+
+      // Help
+      if (/\b(help|what can you do|commands)\b/.test(text)) {
+        return "I can:\n📚 Answer student questions (study tips, exams, focus, stress, GPA, timetable)\n📖 Tell stories with emojis (say \"tell me a story\")\n💻 Suggest code (say \"suggest button code\")\n➕ Do math (example: 25 * 4)\n🕒 Tell the time and date\n😂 Tell jokes\n🙋 Remember your name\n👨‍💻 Tell you who created me\n\nWhat do you want?";
+      }
+
+      // Thanks and bye
+      if (/\b(thanks|thank you)\b/.test(text)) {
+        return "You are welcome! 🤗 Is there anything else you want?";
+      }
+      if (/\b(bye|goodbye|see you)\b/.test(text)) {
+        return "Goodbye" + (userName ? " " + userName : "") + "! 👋 Come back anytime.";
+      }
+
+      // Math
+      const math = solveMath(text);
+      if (math) return "🧮 " + math;
+
+      // Student daily questions
+      const student = studentAnswer(text);
+      if (student) return student;
+
+      return pick([
+        "🤔 I did not understand that. Type \"help\" to see what I can do.",
+        "😅 Sorry, I cannot do that yet. Try asking about study tips, a story, or code.",
+        "Can you say it in another way? 🙏"
+      ]);
+    }
+
+    /* ---------- Quick buttons ---------- */
+
+    const QUICK_ITEMS = [
+      ["📖 Story", "tell me a story"],
+      ["📚 Study tips", "how to study well"],
+      ["📝 Exam tips", "exam tips"],
+      ["💻 Code", "suggest html code"],
+      ["😂 Joke", "tell me a joke"],
+      ["🔥 Motivation", "motivate me"],
+      ["❓ Help", "help"]
+    ];
+
+    function send(message) {
+      addMessage(message, "user");
+      botReply(getReply(message));
+    }
+
+    QUICK_ITEMS.forEach(function (item) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = item[0];
+      b.addEventListener("click", function () { send(item[1]); });
+      quick.appendChild(b);
+    });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const message = input.value.trim();
+      if (!message) return;
+      input.value = "";
+      send(message);
+    });
+
+    // First message
+    botReply("Hello! 👋 I can answer student questions, tell stories 📖, suggest code 💻 and more. Type \"help\" to see everything.");
+    input.focus();
+  </script>
+
+</body>
+</html>
